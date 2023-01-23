@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+ - deployment.yaml
+ - ./gen-secrets  
+
+patches:
+  - path: patches/init-container.yaml
+    target:
+      kind: Deployment
+  - path: patches/share-volume.yaml
+    target:
+      kind: Deployment
+  - path: patches/sidecar.yaml
+    target:
+      kind: Deployment
+
+
+replacements:
+ - source:
+    kind: Secret
+    name: secret-data
+    version: v1
+   targets:
+    - select:
+#       name: keep-secrets-encrypted-app
+       kind: Deployment
+      fieldPaths:
+       - spec.template.spec.initContainers.[name=alter-secrets].env.[name=SECRET_NAME].value
+       - spec.template.spec.containers.[name=alter-secrets-back].env.[name=SECRET_NAME].value
+       - spec.template.spec.containers.[name=container-1].envFrom.0.secretRef.name

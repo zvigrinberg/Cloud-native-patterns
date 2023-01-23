@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: keep-secrets-encrypted
+  name: keep-secrets-encrypted
+spec:
+  selector:
+    matchLabels:
+      app: keep-secrets-encrypted
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: keep-secrets-encrypted
+    spec:
+      containers:
+        - name: alter-secrets-back
+          env:
+            - name: SECRET_NAME
+              value: secret_name
+          image: quay.io/zgrinber/installer:4.10
+          command: [ "/bin/bash" ]
+          args: [ "-cx", " sleep 5 ; oc set data secret/$SECRET_NAME --from-file=/tmp/backup-secret/ ;  sleep infinity" ]
+          volumeMounts:
+            - name: shared-data
+              mountPath: /tmp

@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: keep-secrets-encrypted
+spec:
+  volumes:
+    - name: shared-data
+      emptyDir: {}
+  initContainers:      
+    - name: alter-secrets
+      image: quay.io/zgrinber/installer:4.10
+      env:
+        - name: ENCRYPT_TOKEN
+          valueFrom:
+
+            secretKeyRef:
+              name: encrypt-token-secret
+              key: token
+        - name: SECRET_NAME
+          value: secret_name
+      command: ["/bin/bash"]
+      args: ["-cx", " sleep 5  ; mkdir -p /tmp/temp-secret && oc extract secret/$SECRET_NAME --to=/tmp/temp-secret/  && mkdir -p /tmp/backup-secret && cp /tmp/temp-secret/* /tmp/backup-secret && ls /tmp/temp-secret/  | xargs -i ccrypt -d -K $ENCRYPT_TOKEN /tmp/temp-secret/{} && oc set data secret/$SECRET_NAME --from-file=/tmp/temp-secret/ -o yaml" ]
+      volumeMounts:
+       - name: shared-data
+         mountPath: /tmp
+
+  containers:
+    - name: container-1
+      image: busybox
+      envFrom:
+       - secretRef:
+           name: secret_name
+
+      volumeMounts:
+       - name: shared-data
+         mountPath: /tmp
+      command: ["/bin/sh"]
+      args: ["-c", "sleep infinity"]
+    - name: alter-secrets-back
+      env:
+       - name: SECRET_NAME
+         value: secret_name
+      image: quay.io/zgrinber/installer:4.10
+      readinessProbe:
+        exec:
+          command:
+            - bash
+            - -c
+            - echo "everything is good"!
+      command: [ "/bin/bash" ]
+      args: [ "-cx", " sleep 1 ; oc set data secret/$SECRET_NAME --from-file=/tmp/backup-secret/ ;  sleep infinity" ]
+      volumeMounts:
+        - name: shared-data
+          mountPath: /tmp

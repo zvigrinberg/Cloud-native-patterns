@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: keep-secrets-encrypted
+  name: keep-secrets-encrypted
+spec:
+  selector:
+    matchLabels:
+      app: keep-secrets-encrypted
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: keep-secrets-encrypted
+    spec:
+      volumes:
+        - name: shared-data
+          emptyDir: { }

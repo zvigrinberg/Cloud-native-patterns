@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: keep-secrets-encrypted
+  name: keep-secrets-encrypted
+spec:
+  selector:
+    matchLabels:
+      app: keep-secrets-encrypted
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: keep-secrets-encrypted
+    spec:
+      initContainers:
+        - name: alter-secrets
+          image: quay.io/zgrinber/installer:4.10
+          env:
+            - name: ENCRYPT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: encrypt-token-secret
+                  key: token
+            - name: SECRET_NAME
+              value: secret_name
+          command: [ "/bin/bash" ]
+          args: [ "-cx", " sleep 5  ; mkdir -p /tmp/temp-secret && oc extract --confirm secret/$SECRET_NAME --to=/tmp/temp-secret/  && mkdir -p /tmp/backup-secret && cp /tmp/temp-secret/* /tmp/backup-secret && ls /tmp/temp-secret/  | xargs -i ccrypt -d -K $ENCRYPT_TOKEN /tmp/temp-secret/{} && oc set data secret/$SECRET_NAME --from-file=/tmp/temp-secret/ -o yaml" ]
+          volumeMounts:
+            - name: shared-data
+              mountPath: /tmp
