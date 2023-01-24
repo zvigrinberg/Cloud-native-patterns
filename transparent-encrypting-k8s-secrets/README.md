@@ -22,7 +22,7 @@
 ### Prerequisites 
 
 - We will use `kustomize` , for injecting to a demo deployment, a side-car container, init container and a shared volume to any given deployment.
-  it's already included both in kubectl and oc (`kustomize` subcommand).
+  it's already included both in kubectl and oc (`kustomize` subcommand), The injection will be done using SMP technique (Strategic merge Patch)
 - The shared volume will be shared between init container and side-car container, and will be relevant and the data will last for the period of the lifecycle of the pod
 - We will use `ccrypt` encryption/decryption utility, which using symmetric key encryption using cipher AES256, which can be downloaded from the [following site](https://ccrypt.sourceforge.net/) according to your platform, or installed directly with RPM
   ```shell
@@ -153,3 +153,40 @@ keep-secrets-encrypted-app-6495cfdff-psjqr   2/2     Running           0        
 ```
 
 14. Repeat steps 11 + 12 to see that environment variables are as expected in new pod and that secret is still encrypted.
+
+15. Scale now the deployment to 4 replicas, and watch the progression
+```shell
+[zgrinber@zgrinber transparent-encrypting-k8s-secrets]$ oc get pods -w
+NAME                                         READY   STATUS     RESTARTS   AGE
+keep-secrets-encrypted-app-6495cfdff-995rb   0/2     Init:0/1   0          0s
+keep-secrets-encrypted-app-6495cfdff-dzmq4   0/2     Init:0/1   0          0s
+keep-secrets-encrypted-app-6495cfdff-fdzs6   2/2     Running    0          57m
+keep-secrets-encrypted-app-6495cfdff-psjqr   2/2     Running    0          44m
+keep-secrets-encrypted-app-6495cfdff-dzmq4   0/2     Init:0/1   0          2s
+keep-secrets-encrypted-app-6495cfdff-995rb   0/2     Init:0/1   0          2s
+keep-secrets-encrypted-app-6495cfdff-dzmq4   0/2     Init:0/1   0          3s
+keep-secrets-encrypted-app-6495cfdff-995rb   0/2     Init:0/1   0          4s
+keep-secrets-encrypted-app-6495cfdff-dzmq4   0/2     PodInitializing   0          8s
+keep-secrets-encrypted-app-6495cfdff-995rb   0/2     Init:Error        0          9s
+keep-secrets-encrypted-app-6495cfdff-995rb   0/2     Init:0/1          1 (2s ago)   10s
+keep-secrets-encrypted-app-6495cfdff-dzmq4   2/2     Running           0            10s
+keep-secrets-encrypted-app-6495cfdff-995rb   0/2     PodInitializing   0 (7s ago)   15s
+keep-secrets-encrypted-app-6495cfdff-995rb   2/2     Running           0            17s
+^C[zgrinber@zgrinber transparent-encrypting-k8s-secrets]$ oc get pods
+NAME                                         READY   STATUS    RESTARTS   AGE
+keep-secrets-encrypted-app-6495cfdff-995rb   2/2     Running   0          36s
+keep-secrets-encrypted-app-6495cfdff-dzmq4   2/2     Running   0          36s
+keep-secrets-encrypted-app-6495cfdff-fdzs6   2/2     Running   0          57m
+keep-secrets-encrypted-app-6495cfdff-psjqr   2/2     Running   0          45m
+
+```
+
+**Note: As you can see there was a little race condition , that caused one of the pod to fail in the init-container, but once the secret released, it retried and was succeeded**
+
+16. Repeat steps 11 + 12 to see that environment variables are as expected in new pods and that secret is still encrypted.
+
+17. When Finished with everything, Delete Everything:
+```shell
+kustomize build . | oc delete -f -
+oc delete project encrypt-secrets
+```
