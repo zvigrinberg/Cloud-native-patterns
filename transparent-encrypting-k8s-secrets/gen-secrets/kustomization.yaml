@@ -11,7 +11,8 @@ secretGenerator:
     options:
       disableNameSuffixHash: true
     files:
-      - hello
+      - confidential
       - password
       - token
+      - secret
     type: Opaque
