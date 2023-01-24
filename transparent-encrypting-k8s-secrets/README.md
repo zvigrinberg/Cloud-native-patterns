@@ -87,6 +87,7 @@ echo token=$ENC_KEY > ./gen-secrets/token.env
 ```shell
 cd gen-secrets
 for i in $(ls | grep -v -E  'kustomization|token.env'); do ccrypt -e -K $ENC_KEY  $i; mv $i.cpt $i; done
+cd ..
 ```
 9. deploy the application using kustomize:
 ```shell
