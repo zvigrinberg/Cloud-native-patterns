@@ -21,12 +21,15 @@
 
 ### Prerequisites 
 
-- We will use `kustomize` , for injecting to a demo deployment side-car, init container and a shared volume to any given deployment.
-  it's already included both in kubectl and oc (`kustomize` subcommand)
+- We will use `kustomize` , for injecting to a demo deployment, a side-car container, init container and a shared volume to any given deployment.
+  it's already included both in kubectl and oc (`kustomize` subcommand).
+- The shared volume will be shared between init container and side-car container, and will be relevant and the data will last for the period of the lifecycle of the pod
 - We will use `ccrypt` encryption/decryption utility, which using symmetric key encryption using cipher AES256, which can be downloaded from the [following site](https://ccrypt.sourceforge.net/) according to your platform, or installed directly with RPM
   ```shell
   sudo rpm -i http://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.x86_64.rpm
   ```
+- I've built in advance an image with ccrypt and oc cli so the initContainer and side-car will be able to achieve our objectives, you can rebuild using [this Dockerfile](./Dockerfile) or use it directly 
+  in the following public repo quay.io/zgrinber/installer:4.10
 - The side-car and init container image will also have `ccrypt` tool and `oc` CLI tool.
 - the side-car and init container need to have access to secrets( read, modify ), so for simplicity we will give to `default` serviceAccount in the project the predefined `secretshare` clusterRole
 - Need to download `yq cli` tool to parse and query yaml files, can be [downloaded here](https://github.com/mikefarah/yq/releases)
