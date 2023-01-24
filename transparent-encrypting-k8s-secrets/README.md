@@ -154,9 +154,12 @@ keep-secrets-encrypted-app-6495cfdff-psjqr   2/2     Running           0        
 
 14. Repeat steps 11 + 12 to see that environment variables are as expected in new pod and that secret is still encrypted.
 
-15. Scale now the deployment to 4 replicas, and watch the progression
+15. Scale now the deployment to 4 replicas
 ```shell
-[zgrinber@zgrinber transparent-encrypting-k8s-secrets]$ oc get pods -w
+oc scale deployment keep-secrets-encrypted-app --replicas=4
+```
+16. And watch for progression:
+oc get pods -w
 NAME                                         READY   STATUS     RESTARTS   AGE
 keep-secrets-encrypted-app-6495cfdff-995rb   0/2     Init:0/1   0          0s
 keep-secrets-encrypted-app-6495cfdff-dzmq4   0/2     Init:0/1   0          0s
@@ -183,9 +186,9 @@ keep-secrets-encrypted-app-6495cfdff-psjqr   2/2     Running   0          45m
 
 **Note: As you can see there was a little race condition , that caused one of the pod to fail in the init-container, but once the secret released, it retried and was succeeded**
 
-16. Repeat steps 11 + 12 to see that environment variables are as expected in new pods and that secret is still encrypted.
+17. Repeat steps 11 + 12 to see that environment variables are as expected in new pods and that secret is still encrypted.
 
-17. When Finished with everything, Delete Everything:
+18. When Finished with everything, Delete Everything:
 ```shell
 kustomize build . | oc delete -f -
 oc delete project encrypt-secrets
