@@ -1,0 +1,15 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: secrets-store
+  name: secrets-store
+  namespace: secrets-store
+spec:
+  port:
+    targetPort: 8080
+  to:
+    kind: Service
+    name: secrets-store
+    weight: 100
+  wildcardPolicy: None
