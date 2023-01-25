@@ -159,6 +159,7 @@ keep-secrets-encrypted-app-6495cfdff-psjqr   2/2     Running           0        
 oc scale deployment keep-secrets-encrypted-app --replicas=4
 ```
 16. And watch for progression:
+```shell
 oc get pods -w
 NAME                                         READY   STATUS     RESTARTS   AGE
 keep-secrets-encrypted-app-6495cfdff-995rb   0/2     Init:0/1   0          0s
@@ -181,7 +182,6 @@ keep-secrets-encrypted-app-6495cfdff-995rb   2/2     Running   0          36s
 keep-secrets-encrypted-app-6495cfdff-dzmq4   2/2     Running   0          36s
 keep-secrets-encrypted-app-6495cfdff-fdzs6   2/2     Running   0          57m
 keep-secrets-encrypted-app-6495cfdff-psjqr   2/2     Running   0          45m
-
 ```
 
 **Note: As you can see there was a little race condition , that caused one of the pod to fail in the init-container, but once the secret released, it retried and was succeeded**
