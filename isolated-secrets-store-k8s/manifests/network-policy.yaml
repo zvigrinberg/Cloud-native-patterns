@@ -13,10 +13,11 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              project: consuming-project
+              accessSecretStore: true
         - podSelector:
             matchLabels:
-              app: consuming-app
+              app: secrets-store-consumer
+
 #      ports:
 #        - protocol: TCP
 #          port: 8080
