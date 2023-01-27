@@ -4,7 +4,6 @@ metadata:
   labels:
     app: secrets-store
   name: secrets-store
-  namespace: secrets-store
 spec:
   ports:
   - port: 8080

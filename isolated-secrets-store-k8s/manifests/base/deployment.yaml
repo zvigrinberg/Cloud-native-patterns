@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - image: quay.io/zgrinber/secrets-store:1
-        name: secrets-store
+        name: secrets-container
         env:
           - name: SERVER_PORT
             value: "8080"
