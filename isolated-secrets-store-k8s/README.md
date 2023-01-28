@@ -27,7 +27,7 @@
      sudo npm install -g pem-jwk
     ```
 
-# Create Keys ,JWKS and JWT
+### Create Keys ,JWKS and JWT
 1. Create directory for demo keys
    ```shell
    mkdir -p demo-keys
@@ -57,3 +57,38 @@
    echo {\"exp\": 4685989700, \"cloud-native\": \"true\", \"iat\": 1674389501, \"iss\": \"zgrinber@redhat.com\", \"sub\": \"zgrinber@redhat.com\"} | jwt -key demo-keys/private.pem -alg RS256 -sign - -header 'kid=rsaKey' -header 'alg=RS256' > ./jwt/demo.jwt
    ```
  
+### Build Application image
+
+1. Using your favorite Containers Engine tool(Podman/Docker/Buildah), Build the Application image:
+```shell
+podman build -t quay.io/zgrinber/manifests.secrets-store:1 . 
+```
+2. Connect to kubernetes Cluster.
+
+3. If you don't have Istio installed on the cluster, kindly install it using the instructions [here](https://istio.io/latest/docs/setup/getting-started/)
+
+4. Create 2 namespaces, one `secrets` , `consuming-test`
+```shell
+kubectl create namespace secrets
+kubectl create namespace consuming-test
+```
+5. Label Both namespaces with istio-injection=enabled in order to inject envoy proxy side-cars containers to pods in the namespaces:
+```shell
+kubectl label namespace secrets istio-injection=enabled
+kubectl label namespace consuming-test istio-injection=enabled
+
+```
+
+6. Deploy secrets-store application to k8s:
+```shell
+kustomize build manifests/ | kubectl apply -f - -n secrets
+```
+
+7. Check that all resources defined and that pod is up and running:
+```shell
+kubectl get all -n secrets
+```
+8. Run a pod with busybox, to be client that will consume endpoints from the secrets-store application:
+```shell
+kubectl run rest-test --image=busybox sleep infinity  -n consuming-test 
+```

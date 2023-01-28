@@ -16,7 +16,10 @@ spec:
         - podSelector:
             matchLabels:
               app: secrets-store-consumer
-
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
 #      ports:
 #        - protocol: TCP
 #          port: 8080
