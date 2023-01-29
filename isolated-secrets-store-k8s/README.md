@@ -57,17 +57,21 @@
    echo {\"exp\": 4685989700, \"cloud-native\": \"true\", \"iat\": 1674389501, \"iss\": \"zgrinber@redhat.com\", \"sub\": \"zgrinber@redhat.com\"} | jwt -key demo-keys/private.pem -alg RS256 -sign - -header 'kid=rsaKey' -header 'alg=RS256' > ./jwt/demo.jwt
    ```
  
-### Build Application image
+### Build Application image and deploy it.
 
 1. Using your favorite Containers Engine tool(Podman/Docker/Buildah), Build the Application image:
 ```shell
 podman build -t quay.io/zgrinber/manifests.secrets-store:1 . 
 ```
 2. Connect to kubernetes Cluster.
+  - If you're using minikube , you need to install cni plugin provider in the cluster, that will implement k8s' networking Policy functionality,  supported implementations are calico, cilium and flannel, I used cilium, you can create the minikube cluster with this command:
+      ```shell
+      minikube start --cni cilium
+      ```
 
-3. If you don't have Istio installed on the cluster, kindly install it using the instructions [here](https://istio.io/latest/docs/setup/getting-started/)
+4. If you don't have Istio installed on the cluster, kindly install it using the instructions [here](https://istio.io/latest/docs/setup/getting-started/)
 
-4. Create 2 namespaces, one `secrets` , `consuming-test`
+5. Create 2 namespaces, one `secrets` , `consuming-test`
 ```shell
 kubectl create namespace secrets
 kubectl create namespace consuming-test
@@ -92,3 +96,106 @@ kubectl get all -n secrets
 ```shell
 kubectl run rest-test --image=busybox sleep infinity  -n consuming-test 
 ```
+9. Create Istio' RequestAuthentication Object to enable JWT authentication ( and validation according to JWKS that I've created earlier ) in secrets namespace:
+```shell
+kubectl apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: "jwt-auth"
+  namespace: secrets
+spec:
+  selector:
+    matchLabels:
+      app: secrets-store
+  jwtRules:
+  - issuer: "zgrinber@redhat.com"
+    jwksUri: "https://raw.githubusercontent.com/zvigrinberg/Cloud-native-patterns/main/isolated-secrets-store-k8s/jwt/jkws-demo.json"
+EOF
+```
+10. Now create Istio' AuthorizationPolicy to define rule which will permit only  a specific issuer and subject claims (in this case it's the same one) that must be presented in the jwt
+```shell
+kubectl apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: require-jwt
+  namespace: secrets
+spec:
+  selector:
+    matchLabels:
+      app: secrets-store
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+       requestPrincipals: ["zgrinber@redhat.com/zgrinber@redhat.com"]
+EOF
+```
+11. Label consuming-test namespace with the right label so it will be able to access the secrets-store service in namespace secrets according to Constraint defined in network policy:
+```shell
+kubectl label namespace consuming-test accessSecretStore="true"
+```
+12. Create a client pod on the consuming-test namespace (which is opened to invoke secrets-store service in secrets namespace) and we'll try to access the secrets store from it
+```shell
+ kubectl run rest-test --image=busybox sleep infinity  -n consuming-test 
+pod/rest-test created
+```
+
+13. Try to invoke the secrets-store service from the pod, without jwt
+```shell
+kubectl exec rest-test -n consuming-test sh -- wget http://secrets-store.secrets:8080/client/init -O -
+
+Connecting to secrets-store.secrets:8080 (10.105.233.220:8080)
+wget: server returned error: HTTP/1.1 403 Forbidden
+command terminated with exit code 1
+```
+**Note: We got that we're not authorized, this is because we didn't specify an authorized JWT token, we'll do it right now**
+
+14. Now pass into the request' Authorization Bearer header the JWT that we've created earlier:
+```shell
+export TOKEN=$(cat ./jwt/demo.jwt) ; kubectl exec rest-test -n consuming-test sh -- wget http://secrets-store.secrets:8080/client/init --header 'Authorization: Bearer '$TOKEN'' -S  -O -
+
+Connecting to secrets-store.secrets:8080 (10.105.233.220:8080)
+  HTTP/1.1 200 OK
+  date: Sun, 29 Jan 2023 00:52:17 GMT
+  content-length: 167
+  content-type: text/plain; charset=utf-8
+  x-envoy-upstream-service-time: 0
+  server: istio-envoy
+  connection: close
+  x-envoy-decorator-operation: secrets-store.secrets.svc.cluster.local:8080/*
+  
+writing to stdout
+-                    100% |********************************|   167  0:00:00 ETA
+written to stdout
+{"endpoints":[{"name":"TOKEN","url":"/client/v1/secret/TOKEN"},{"name":"PASSWORD","url":"/client/v1/secret/PASSWORD"},{"name":"CERT","url":"/client/v1/secret/CERT"}]}
+```
+
+15. Now let's prove that the JWT validation is actually working correctly against the JWKS file that we've configured for Istio RequestAuthentication, let's decode header and claims part of the jwt:
+```shell
+echo $TOKEN | awk -F . '{print $1"\n" $2}' | base64 -d
+{"alg":"RS256","kid":"rsaKey","typ":"JWT"}{"cloud-native":"true","exp":4685989700,"iat":1674389501,"iss":"zgrinber@redhat.com","sub":"zgrinber@redhat.com"}
+```
+Now let's take this 2 parts , but without the secret part , and pass another invalid secret part , and see that it won't let us consume the service that way.
+
+16. Try to invoke the endpoint in secrets-service with an invalidated JWT:
+```shell
+INVALID_TOKEN=$(echo $TOKEN | awk -F . '{print $1"."$2".abcdefghijklmnopqrstuvwxyz"}' | cat) ; kubectl exec rest-test -n consuming-test sh -- wget http://secrets-store.secrets:8080/client/init --header 'Authorization: Bearer '$INVALID_TOKEN'' -S  -O -
+Connecting to secrets-store.secrets:8080 (10.105.233.220:8080)
+  HTTP/1.1 401 Unauthorized
+wget: server returned error: HTTP/1.1 401 Unauthorized
+command terminated with exit code 1
+```
+
+17. OK, So from namespace consuming-test, we have communication to secrets namespace, and with the Right signed JWT (only with it) , we can actually consume data from secrets-store service.
+    Now let's see what happend if we're trying to consume the service from default namespace:
+```shell
+kubectl run rest-test --image=busybox sleep infinity  -n default
+pod/rest-test created
+kubectl exec rest-test -n default sh -- wget http://secrets-store.secrets:8080/client/init -O -
+Connecting to secrets-store.secrets:8080 (10.105.233.220:8080)
+wget: error getting response: Connection reset by peer
+command terminated with exit code 1
+```
+And we got that the networking from default to secrets namespace is blocked, as expected ( blocked by k8s network policy ). 
