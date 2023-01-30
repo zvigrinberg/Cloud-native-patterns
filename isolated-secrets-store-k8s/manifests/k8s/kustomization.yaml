@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
  - secrets
  - base
+ - k8s
 
 
 

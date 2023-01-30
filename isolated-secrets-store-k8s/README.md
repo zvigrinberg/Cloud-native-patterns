@@ -145,8 +145,10 @@ pod/rest-test created
 13. Try to invoke the secrets-store service from the pod, without jwt
 ```shell
 kubectl exec rest-test -n consuming-test sh -- wget http://secrets-store.secrets:8080/client/init -O -
-
-Connecting to secrets-store.secrets:8080 (10.105.233.220:8080)
+```
+Output:
+```shell
+Connecting to secrets-store.secrets:8080 (10.98.220.241:8080)
 wget: server returned error: HTTP/1.1 403 Forbidden
 command terminated with exit code 1
 ```
@@ -156,9 +158,16 @@ command terminated with exit code 1
 ```shell
 export TOKEN=$(cat ./jwt/demo.jwt) ; kubectl exec rest-test -n consuming-test sh -- wget http://secrets-store.secrets:8080/client/init --header 'Authorization: Bearer '$TOKEN'' -S  -O -
 
+written to stdout
+{"endpoints":[{"name":"TOKEN","url":"/client/v1/secret/TOKEN"},{"name":"PASSWORD","url":"/client/v1/secret/PASSWORD"},{"name":"CERT","url":"/client/v1/secret/CERT"}]}
+```
+
+Output:
+```shell
+
 Connecting to secrets-store.secrets:8080 (10.105.233.220:8080)
   HTTP/1.1 200 OK
-  date: Sun, 29 Jan 2023 00:52:17 GMT
+  date: Mon, 30 Jan 2023 09:08:46 GMT
   content-length: 167
   content-type: text/plain; charset=utf-8
   x-envoy-upstream-service-time: 0
@@ -168,32 +177,81 @@ Connecting to secrets-store.secrets:8080 (10.105.233.220:8080)
   
 writing to stdout
 -                    100% |********************************|   167  0:00:00 ETA
-written to stdout
-{"endpoints":[{"name":"TOKEN","url":"/client/v1/secret/TOKEN"},{"name":"PASSWORD","url":"/client/v1/secret/PASSWORD"},{"name":"CERT","url":"/client/v1/secret/CERT"}]}
 ```
 
-15. Now let's prove that the JWT validation is actually working correctly against the JWKS file that we've configured for Istio RequestAuthentication, let's decode header and claims part of the jwt:
+15. Now let's enable mTLS traffic between consuming-test and secrets namespaces, by leveraging Istio's feature of  auto mTLS (Client + Server) , So we'll have pod to pod TLS encryption, so the origin side-car envoy proxy will encrypt the data, and the target envoy proxy will decrypt the data payload, and pass it to the backend application:
+```shell
+kubectl apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1                                    
+kind: PeerAuthentication
+metadata:
+  name: "default"
+  namespace: "secrets"
+spec:
+  mtls:
+    mode: STRICT
+EOF
+```
+
+16. The Response payload from section 14, is in the form of REST Architecture kind of constraint which is called [`HATEOAS`](https://en.wikipedia.org/wiki/HATEOAS) (Acronym for "Hypermedia as the Engine of Application State"), so let's take one of the endpoints and invoke it on the server:
+```shell
+export TOKEN=$(cat ./jwt/demo.jwt) ; kubectl exec rest-test -n consuming-test sh -- wget http://secrets-store.secrets:8080/client/v1/secret/TOKEN --header 'Authorization: Bearer '$TOKEN'' -S  -O -
+```
+Output:
+```shell
+{"secretName":"TOKEN","secretValue":"mysecrettoken"}
+Connecting to secrets-store.secrets:8080 (10.98.220.241:8080)
+  HTTP/1.1 200 OK
+  date: Mon, 30 Jan 2023 09:18:18 GMT
+  content-length: 53
+  content-type: text/plain; charset=utf-8
+  x-envoy-upstream-service-time: 0
+  server: envoy
+  connection: close
+  
+writing to stdout
+-                    100% |********************************|    53  0:00:00 ETA
+```
+
+17. Let's prove that the payload sent encrypted, the hard way is to sniff the packets in the envoy proxy container when the packet intercepted, but there is an easy way how to do it in Istio, Side-car envoy proxy enrich the request before sends it to the target with a dedicated header called `X-Forwarded-Client-Cert`, So if we'll see that this Header exists in the logs of the backend application (I'm printing there the headers, for this purpose also), then it means that the request sent encrypted from pod to pod:
+```shell
+kubectl logs $(kubectl get pods -l app=secrets-store -n secrets -o=jsonpath="{..metadata.name}") -n secrets | tail -n 50 | grep REQUEST: -A 11 | grep Forwarded
+```
+Output:
+```shell
+X-Forwarded-Client-Cert: By=spiffe://cluster.local/ns/secrets/sa/default;Hash=21a228796296835400109189d50d26d1c55f67fd8d271340b94c983cd8e1bd5d;Subject="";URI=spiffe://cluster.local/ns/consuming-test/sa/default
+X-Forwarded-Proto: http
+```
+18. Now let's prove that the JWT validation is actually working correctly against the JWKS file that we've configured for Istio RequestAuthentication, let's decode header and claims part of the jwt:
 ```shell
 echo $TOKEN | awk -F . '{print $1"\n" $2}' | base64 -d
 {"alg":"RS256","kid":"rsaKey","typ":"JWT"}{"cloud-native":"true","exp":4685989700,"iat":1674389501,"iss":"zgrinber@redhat.com","sub":"zgrinber@redhat.com"}
 ```
 Now let's take this 2 parts , but without the secret part , and pass another invalid secret part , and see that it won't let us consume the service that way.
 
-16. Try to invoke the endpoint in secrets-service with an invalidated JWT:
+19. Try to invoke the endpoint in secrets-service with an invalidated JWT:
 ```shell
 INVALID_TOKEN=$(echo $TOKEN | awk -F . '{print $1"."$2".abcdefghijklmnopqrstuvwxyz"}' | cat) ; kubectl exec rest-test -n consuming-test sh -- wget http://secrets-store.secrets:8080/client/init --header 'Authorization: Bearer '$INVALID_TOKEN'' -S  -O -
+```
+Output:
+```shell
 Connecting to secrets-store.secrets:8080 (10.105.233.220:8080)
   HTTP/1.1 401 Unauthorized
 wget: server returned error: HTTP/1.1 401 Unauthorized
 command terminated with exit code 1
 ```
 
-17. OK, So from namespace consuming-test, we have communication to secrets namespace, and with the Right signed JWT (only with it) , we can actually consume data from secrets-store service.
+
+20. OK, So from namespace consuming-test, we have communication to secrets namespace, and with the Right signed JWT (only with it) , we can actually consume data from secrets-store service.
     Now let's see what happend if we're trying to consume the service from default namespace:
 ```shell
 kubectl run rest-test --image=busybox sleep infinity  -n default
-pod/rest-test created
 kubectl exec rest-test -n default sh -- wget http://secrets-store.secrets:8080/client/init -O -
+```
+
+Output:
+```shell
+pod/rest-test created
 Connecting to secrets-store.secrets:8080 (10.105.233.220:8080)
 wget: error getting response: Connection reset by peer
 command terminated with exit code 1
