@@ -157,14 +157,12 @@ command terminated with exit code 1
 14. Now pass into the request' Authorization Bearer header the JWT that we've created earlier:
 ```shell
 export TOKEN=$(cat ./jwt/demo.jwt) ; kubectl exec rest-test -n consuming-test sh -- wget http://secrets-store.secrets:8080/client/init --header 'Authorization: Bearer '$TOKEN'' -S  -O -
-
-written to stdout
-{"endpoints":[{"name":"TOKEN","url":"/client/v1/secret/TOKEN"},{"name":"PASSWORD","url":"/client/v1/secret/PASSWORD"},{"name":"CERT","url":"/client/v1/secret/CERT"}]}
 ```
 
 Output:
 ```shell
-
+written to stdout
+{"endpoints":[{"name":"TOKEN","url":"/client/v1/secret/TOKEN"},{"name":"PASSWORD","url":"/client/v1/secret/PASSWORD"},{"name":"CERT","url":"/client/v1/secret/CERT"}]}
 Connecting to secrets-store.secrets:8080 (10.105.233.220:8080)
   HTTP/1.1 200 OK
   date: Mon, 30 Jan 2023 09:08:46 GMT
