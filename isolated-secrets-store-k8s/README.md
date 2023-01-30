@@ -85,7 +85,7 @@ kubectl label namespace consuming-test istio-injection=enabled
 
 6. Deploy secrets-store application to k8s:
 ```shell
-kustomize build manifests/ | kubectl apply -f - -n secrets
+kustomize build manifests/k8s | kubectl apply -f - -n secrets
 ```
 
 7. Check that all resources defined and that pod is up and running:
