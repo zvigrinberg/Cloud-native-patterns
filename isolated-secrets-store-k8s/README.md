@@ -910,5 +910,26 @@ written to stdout
 	0x1050:  b1d8 579e 028a 31af 8239 394b 5296 5b17  ..W...1..99KR.[.
 	0x1060:  b3ac 80ad 2e87 444b 4614 6e2e edf5 fba9  ......DKF.n.....
 	0x1070:  03
-
 ```
+
+7. Uninstall all when finished, to release all resources:
+```shell
+kubectl kustomize manifests/k8s | kubectl delete -f - -n secrets
+```
+Output:
+```shell
+secret "the-secrets-9k62d4tck4" deleted
+service "secrets-store" deleted
+deployment.apps "secrets-store" deleted
+networkpolicy.networking.k8s.io "default-deny-ingress" deleted
+networkpolicy.networking.k8s.io "isolate-secret-store" deleted
+```
+8. If created the cluster using minikube, you can delete the cluster as well:
+```shell
+minikube delete
+```
+```shell
+🔥  Deleting "minikube" in kvm2 ...
+💀  Removed all traces of the "minikube" cluster.
+```
+
