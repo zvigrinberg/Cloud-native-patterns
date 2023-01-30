@@ -3,8 +3,7 @@ kind: Kustomization
 resources:
  - deployment.yaml
  - svc.yaml
- - network-policy.yaml
- - network-policy-denyall.yaml
+
 
 
 

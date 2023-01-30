@@ -1,6 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    sidecar.istio.io/inject: 'true'
   labels:
     app: secrets-store
   name: secrets-store
@@ -14,6 +16,8 @@ spec:
     metadata:
       labels:
         app: secrets-store
+      annotations:
+        sidecar.istio.io/inject: 'true'
     spec:
       containers:
       - image: quay.io/zgrinber/secrets-store:1

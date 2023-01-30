@@ -6,7 +6,8 @@ metadata:
   name: secrets-store
 spec:
   ports:
-  - port: 8080
+  - name: http # This one is critical for Istio to enable Auto mTLS from envoy proxy to envoy proxy
+    port: 8080
     protocol: TCP
     targetPort: 8080
   selector:
