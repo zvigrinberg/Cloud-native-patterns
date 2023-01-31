@@ -11,13 +11,14 @@
 
 1. Access to a k8s Cluster.
 2. Istio installed on it, if not installed, [Follow instructions here](https://istio.io/latest/docs/setup/getting-started/):
+ 
    **Note: If wants to run Istion with privileged escalation in order to sniff packets ( to see Auto mTLS in action), install istio with the following flag on cluster:** 
     ```shell
     istioctl install --set values.global.proxy.privileged=true
     ```
-3. jq binary for manipulating json files.
-4. Golang installed, [Get it here if you don't have](https://go.dev/dl/)
-5. jwt token creator, signer and verifier command line tool, [Get it Here](https://github.com/golang-jwt/jwt/tree/main/cmd/jwt), Instructions to quickly install it and set it up on system PATH:
+4. jq binary for manipulating json files.
+5. Golang installed, [Get it here if you don't have](https://go.dev/dl/)
+6. jwt token creator, signer and verifier command line tool, [Get it Here](https://github.com/golang-jwt/jwt/tree/main/cmd/jwt), Instructions to quickly install it and set it up on system PATH:
    ```shell
    cd /tmp
    git clone git@github.com:golang-jwt/jwt.git
@@ -25,8 +26,8 @@
    go build -o jwt main.go
    cp ./jwt ~/bin
    ```
-6. Download NodeJs , according to your [Platform](https://nodejs.org/en/download/)
-7. pem to jwk(Json Web Key) convertor, to convert private + public keys from pem format to jwk format: 
+7. Download NodeJs , according to your [Platform](https://nodejs.org/en/download/)
+8. pem to jwk(Json Web Key) convertor, to convert private + public keys from pem format to jwk format: 
     ```shell
      sudo npm install -g pem-jwk
     ```
