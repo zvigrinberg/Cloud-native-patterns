@@ -12,7 +12,7 @@
 1. Access to a k8s Cluster.
 2. Istio installed on it, if not installed, [Follow instructions here](https://istio.io/latest/docs/setup/getting-started/):
  
-   **Note: If wants to run Istion with privileged escalation in order to sniff packets ( to see Auto mTLS in action), install istio with the following flag on cluster:** 
+   **Note: If wants to run Istio with privileged escalation in order to sniff packets ( to see Auto mTLS in action), install istio with the following flag on cluster:** 
     ```shell
     istioctl install --set values.global.proxy.privileged=true
     ```
